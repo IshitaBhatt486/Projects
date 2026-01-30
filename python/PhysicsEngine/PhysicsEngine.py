@@ -82,22 +82,38 @@ class Ball:
         return distance <= self.radius
 
 class Button:
-    def __init__(self, x, y, width, height, text):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.font = pygame.font.SysFont('Arial', 24)
-    
+    def __init__(self, x, y, w, h, text, color=(50, 200, 50)):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.y_base = y
+        self.offset = 5
+        
+        self.txt_surf = pygame.font.SysFont('Arial', 24, bold=True).render(text, True, (255, 255, 255))
+        self.txt_rect = self.txt_surf.get_rect()
+
+        self.c_main = color
+        self.c_hover = tuple(min(255, c + 30) for c in color)
+        self.c_shadow = tuple(max(0, c - 50) for c in color)
+
     def draw(self, surface):
-        pygame.draw.rect(surface, GRAY, self.rect)
-        pygame.draw.rect(surface, WHITE, self.rect, 2)
+        color = self.c_hover if self.rect.collidepoint(pygame.mouse.get_pos()) else self.c_main
+        
+        pygame.draw.rect(surface, self.c_shadow, (self.rect.x, self.y_base, self.rect.w, 5), border_radius=8)
+        
+        self.rect.y = self.y_base - self.offset
+        pygame.draw.rect(surface, color, self.rect, border_radius=8)
+        
+        self.txt_rect.center = self.rect.center
+        surface.blit(self.txt_surf, self.txt_rect)
 
-        text_surface = self.font.render(self.text, True, WHITE)
-        text_rectangle = text_surface.get_rect(center=self.rect.center)
-
-        surface.blit(text_surface, text_rectangle)
-
-    def is_clicked(self, pos):
-        return self.rect.collidepoint(pos)
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1 and self.rect.collidepoint(event.pos):
+                self.offset = 0
+                return True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                self.offset = 5
+        return False
 
 # collisions
 def resolve_collisions(balls):
@@ -154,27 +170,25 @@ def main():
     while running:
 
         for event in pygame.event.get():
-
             if event.type == pygame.QUIT:
                 running = False
-            
+
+            if add_button.handle_event(event):
+                r = random.randint(15, 35)
+                x = random.randint(r + 50, WIDTH - r - 50)
+                y = random.randint(r + 50, 300)
+                color = (random.randint(50,255), random.randint(50,255), random.randint(50,255))
+                balls.append(Ball(x, y, r, color))
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                
                 if event.button == 1:
-                    if add_button.is_clicked(event.pos):
-                        r = random.randint(15, 35)
-                        x = random.randint(r + 50, WIDTH - r - 50)
-                        y = random.randint(r + 50, 300)
-                        color = (random.randint(50,255), random.randint(50,255), random.randint(50,255))
-                        balls.append(Ball(x, y, r, color))
                     
-                    else:
-                        for ball in reversed(balls):
-                            if ball.isClickInsideBall(event.pos):
-                                ball.isdragging = True
-                                draggedBall = ball
-                                break
-            
+                    for ball in reversed(balls):
+                        if ball.isClickInsideBall(event.pos):
+                            ball.isdragging = True
+                            draggedBall = ball
+                            break
+
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     if draggedBall:
@@ -184,7 +198,6 @@ def main():
             elif event.type == pygame.MOUSEMOTION:
                 if draggedBall:
                     draggedBall.x, draggedBall.y = event.pos
-                    
                     draggedBall.dx = event.rel[0]
                     draggedBall.dy = event.rel[1]
 
